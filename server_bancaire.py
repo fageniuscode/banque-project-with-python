@@ -49,27 +49,36 @@ class ServeurBanque:
             baseDeDonnees.close()
             return True
 
-    def transfert(self, nocompteSource, nocompteDestination, montant):
-        # Le montant est positif
-        baseDeDonnees, curseur = self.connexionBaseDeDonnees()
+    def transfert(self, idCompteSource, idCompteDest, montant):
+        # Conversion des valeurs en nombres à virgule flottante
         montant = float(montant)
-        soldeCompteSource = self.solde(nocompteSource)
-        if soldeCompteSource < montant or montant <= 0:
+        baseDeDonnees, curseur = self.connexionBaseDeDonnees()
+        soldeCompteSource = self.solde(idCompteSource)
+        soldeCompteDest = self.solde(idCompteDest)
+        if float(soldeCompteSource) < montant or montant <= 0:
             baseDeDonnees.close()
             return False
         else:
-            nouveauSoldeSource = soldeCompteSource - montant
-            curseur.execute("UPDATE comptes SET Solde = %s WHERE idCompte = %s", (nouveauSoldeSource, nocompteSource))
-            curseur.execute("INSERT INTO operations (dateOperation, idCompte, libelleOperation, montant) "
-                            "VALUES (CURDATE(), %s, 'Virement', %s)", (nocompteSource, -montant))
-            soldeCompteDestination = self.solde(nocompteDestination)
-            nouveauSoldeDestination = soldeCompteDestination + montant
-            curseur.execute("UPDATE comptes SET Solde = %s WHERE idCompte = %s", (nouveauSoldeDestination, nocompteDestination))
-            curseur.execute("INSERT INTO operations (dateOperation, idCompte, libelleOperation, montant) "
-                            "VALUES (CURDATE(), %s, 'Virement', %s)", (nocompteDestination, montant))
+            nouveauSoldeSource = float(soldeCompteSource) - montant
+            nouveauSoldeDest = float(soldeCompteDest) + montant
+            # Utilisation de paramètres de substitution dans la requête
+            curseur.execute("UPDATE comptes SET solde = %s WHERE idCompte = %s", (nouveauSoldeSource, idCompteSource))
+            curseur.execute("UPDATE comptes SET solde = %s WHERE idCompte = %s", (nouveauSoldeDest, idCompteDest))
+            # Utilisation de paramètres de substitution dans la requête
+            curseur.execute("INSERT INTO operations (dateOperation, libelleOperation, idCompte, montant) "
+                "VALUES (NOW(), 'Transfert vers', %s, %s)", (idCompteDest, montant))
+
+            # Utilisation de paramètres de substitution dans la requête
+            curseur.execute("INSERT INTO operations (dateOperation, libelleOperation, idCompte, montant) "
+                "VALUES (NOW(), 'Transfert depuis', %s, %s)", (idCompteSource, montant))
+            
             baseDeDonnees.commit()
             baseDeDonnees.close()
             return True
+
+
+
+
 
     def depot(self, idCompte, montant):
         # Le montant est positif
